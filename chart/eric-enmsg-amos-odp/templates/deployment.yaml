@@ -1,0 +1,9 @@
+{{- template "eric-enm-common-helmchart-library.deployment" (list . "eric-enmsg-amos-odp.deployment") -}}
+{{- define "eric-enmsg-amos-odp.deployment" -}}
+spec:
+  template:
+    spec:
+    {{- if .Values.terminationGracePeriod.enabled }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriod.seconds }}
+    {{- end }}
+{{- end -}}

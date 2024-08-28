@@ -1,0 +1,9 @@
+{{- define "eric-enmsg-amos.eric_ingress-ipv6" -}}
+metadata:
+  name: amos-odp-ipv6
+spec:
+  virtualServiceIP: {{ .Values.global.vips.amos_service_IPv6_IPs }}
+{{- end}}
+{{- if and .Values.global.tags.deploy_eric_net_ingress_l4 .Values.global.ip_version (or (eq .Values.global.ip_version "Dual") (eq .Values.global.ip_version "IPv6_EXT")) }}
+{{- template "eric-enm-common-helmchart-library.eric_ingress-ipv6" (list . "eric-enmsg-amos.eric_ingress-ipv6") -}}
+{{- end}}

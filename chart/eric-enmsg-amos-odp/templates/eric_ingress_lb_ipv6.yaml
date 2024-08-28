@@ -1,0 +1,84 @@
+{{- if and .Values.global.tags.deploy_eric_net_ingress_l4 .Values.global.ip_version (or (eq .Values.global.ip_version "Dual") (eq .Values.global.ip_version "IPv6_EXT")) }}
+  {{- $replicas := index .Values.global "replicas-eric-enmsg-amos" -}}
+  {{- $amosVip := .Values.global.vips.amos_service_IPv6_IPs -}}
+
+  {{- $externalPortCpmStart := add 0 . -}}
+  {{- $externalPortCpmEnd := add 0 . -}}
+
+  {{- range untilStep 0 (int $replicas) 1 }}
+
+  {{- $externalPortSshSftp := add 5020 . -}}
+
+  {{- $externalPortFtpesAdvanceStart := mul 200 . -}}
+  {{- $externalPortFtpesAdvanceEndFraction := add 1 . -}}
+  {{- $externalPortFtpesAdvanceEnd := mul 200 $externalPortFtpesAdvanceEndFraction -}}
+  {{- $externalPortFtpesAdvanceEnd := add $externalPortFtpesAdvanceEnd -1 -}}
+  {{- $externalPortFtpesStart := add 19920 $externalPortFtpesAdvanceStart -}}
+  {{- $externalPortFtpesEnd := add 19920 $externalPortFtpesAdvanceEnd -}}
+
+  {{- $externalPortEmca := add 33079 . -}}
+
+  {{- $externalPortCpmAdvance := mul 100 . -}}
+  {{- $externalPortCpmStart = add 5342 $externalPortCpmAdvance  -}}
+  {{- $externalPortCpmEnd = add 5392 $externalPortCpmAdvance -}}
+
+  {{- $externalPortDiaAdvanceStart := mul 27 . -}}
+  {{- $externalPortDiaAdvanceEndFraction := add 1 . -}}
+  {{- $externalPortDiaAdvanceEnd := mul 27 $externalPortDiaAdvanceEndFraction -}}
+  {{- $externalPortDiaAdvanceEnd := add $externalPortDiaAdvanceEnd -1 -}}
+  {{- $externalPortDiaStart := add 11881 $externalPortDiaAdvanceStart -}}
+  {{- $externalPortDiaEnd := add 11881 $externalPortDiaAdvanceEnd -}}
+apiVersion: routing.ericingress.ericsson.com/v1alpha1
+kind: EricIngress
+metadata:
+  name: amos-odp-{{ . }}-ipv6
+spec:
+  virtualServiceIP: {{ $amosVip }}
+  backends:
+    name: amos-odp-ipv6
+    config:
+      - ports:
+          vipPort: {{ $externalPortSshSftp }}
+          svcPort: 22
+        protocol: tcp
+        algo: rr
+        mode: nat
+      - portRange:
+          vipPortRange:
+            start: {{ $externalPortFtpesStart }}
+            end: {{ $externalPortFtpesEnd }}
+          svcPortRange:
+            start: {{ $externalPortFtpesStart }}
+            end: {{ $externalPortFtpesEnd }}
+        protocol: tcp
+        algo: rr
+        mode: nat
+      - ports:
+         vipPort: {{ $externalPortEmca }}
+         svcPort: {{ $externalPortEmca }}
+        protocol: udp
+        algo: rr
+        mode: nat
+      - portRange:
+          vipPortRange:
+            start: {{ $externalPortCpmStart }}
+            end: {{ $externalPortCpmEnd }}
+          svcPortRange:
+            start: {{ $externalPortCpmStart }}
+            end: {{ $externalPortCpmEnd }}
+        protocol: tcp
+        algo: rr
+        mode: nat
+      - portRange:
+          vipPortRange:
+            start: {{ $externalPortDiaStart }}
+            end: {{ $externalPortDiaEnd }}
+          svcPortRange:
+            start: {{ $externalPortDiaStart }}
+            end: {{ $externalPortDiaEnd }}
+        protocol: tcp
+        algo: rr
+        mode: nat
+---
+  {{- end }}
+{{- end }}

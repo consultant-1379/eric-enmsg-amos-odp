@@ -1,0 +1,7 @@
+- backend:
+    service:
+      name: amos-odp-services
+      port:
+        number: 8080
+  path: /terminal-websocket/
+  pathType: ImplementationSpecific

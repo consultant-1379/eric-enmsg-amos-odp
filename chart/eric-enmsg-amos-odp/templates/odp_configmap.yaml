@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: amos-odp-template
+  labels:
+    "com.ericsson.odp.template": "true"
+  annotations:
+    "com.ericsson.odp.application": "amos-odp"
+    "com.ericsson.odp.accessgroups": "amos_users"
+data:
+{{- if .Files.Glob "appconfig/odp-templates/amos-odp-template.yaml" }}
+  template: |
+{{ tpl (.Files.Get "appconfig/odp-templates/amos-odp-template.yaml") . | indent 4 }}
+{{- end }}

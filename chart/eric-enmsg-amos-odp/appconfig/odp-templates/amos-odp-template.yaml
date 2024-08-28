@@ -1,0 +1,263 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    ericsson.com/product-name: helm-eric-enmsg-amos-odp
+    ericsson.com/product-number: CXC XXXXXXX
+    ericsson.com/product-revision: R1A
+  labels:
+    name: amos-odp
+    app: amos-odp
+  name: {{ "{{" }} .UserName {{ "}}" }}
+spec:
+  hostname: {{ "{{" }} .PodName {{ "}}" }}
+  restartPolicy: "Never"
+  containers:
+    - command:
+        - /usr/bin/catatonit
+        - --
+        - /stdout-redirect
+        - -redirect
+        - all
+        - -service-id
+        - amos
+        - -logfile
+        - /var/lib/eric-odp-logger/enm-odp.log
+        - -size
+        - "5"
+        - -rotate
+        - "2"
+        - --
+        - "/bin/bash"               # Without /bin/bash here, below script doesn't seems to be executed withd stdout-redirect.
+        - /ericsson/pod_setup/sshd/scripting/start_sshd.sh
+      env:
+        - name: TZ
+          value: {{ .Values.global.timezone }}
+        - name: JBOSS_HOST
+          value: {{ .Values.service.name }}
+        - name: sessiontoken #Need to get aligned with the name
+          valueFrom:
+            secretKeyRef:
+              name: {{ "{{" }} .TokenName {{ "}}" }}
+              key: odptoken
+        - name: sessionusername #Need to get aligned with the name
+          value: {{ "{{" }} .UserName {{ "}}" }}
+        - name: USER
+          value: {{ "{{" }} .UserName {{ "}}" }}
+        - name: HOME
+          value: /home/shared/{{ "{{" }} .UserName {{ "}}" }}
+        - name: LOGNAME
+          value: {{ "{{" }} .UserName {{ "}}" }}
+        - name: PWD
+          value: /home/shared/{{ "{{" }} .UserName {{ "}}" }}
+        - name: ODP_TRUST_FILE
+          value: "/ericsson/credm/tlsMount/odptrust.jks"
+      #image: armdocker.rnd.ericsson.se/proj_oss_releases/enm/eric-enmsg-amos-odp:1.0.0-19
+      image: {{ template "eric-enmsg-amos-odp.amos-odp-image" (list .Values "amos-odp") }}
+      imagePullPolicy: Always
+      tty: true
+      stdin: true
+      livenessProbe:
+        exec:
+          command:
+          - /usr/local/bin/monitor_user_sessions.sh
+        failureThreshold: 1
+        initialDelaySeconds: 60
+        periodSeconds: 5
+        successThreshold: 1
+        timeoutSeconds: 10
+      name: amos
+      volumeMounts:
+        - name: home
+          mountPath: /home/shared/{{ "{{" }} .UserName {{ "}}" }}
+          subPath: {{ "{{" }} .UserName {{ "}}" }}
+        - name: amos
+          mountPath: /ericsson/log/amos/moshell_logfiles/{{ "{{" }} .UserName {{ "}}" }}
+          subPath: {{ "{{" }} .UserName {{ "}}" }}
+        - name: data
+          mountPath: /ericsson/tor/data
+        - name: var-lib-eric-odp
+          mountPath: /var/lib/eric-odp
+        - name: logs
+          mountPath: /var/lib/eric-odp-logger/
+        - name: var-opt-ericsson-amos
+          mountPath: /var/opt/ericsson/amos
+        - name: enm-global-moshellrc
+          mountPath: /home/shared/common/moshell
+        - name: var-tmp
+          mountPath: /var/tmp
+        - name: tmp
+          mountPath: /tmp
+        - name: run
+          mountPath: /run
+        - name: cert-volume
+          mountPath: /ericsson/credm/tlsMount/
+      securityContext:
+        runAsUser: {{ "{{" }}index .LdapUserAttr "uidNumber"{{ "}}" }}
+        runAsGroup: 5004
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: [ "ALL" ]
+        seccompProfile:
+          type: RuntimeDefault
+    - env:
+      - name: USER
+        value: {{ "{{" }} .UserName {{ "}}" }}
+      - name: TZ
+        value: {{ .Values.global.timezone }}
+      - name: LOGNAME
+        value: {{ "{{" }} .UserName {{ "}}" }}
+      - name: PWD
+        value: /var/lib/eric-odp
+      - name: ODP_SESSION_TOKEN_FILENAME
+        value: .enm_login
+      #image: armdocker.rnd.ericsson.se/proj_oss_releases/enm/eric-enm-sles-base-scripting-odp:1.0.0-20
+      image: {{ template "eric-enmsg-amos-odp.amos-odp-image" (list .Values "amos-odp-sidecar") }}
+      name: session-monitor
+      command:
+      - /usr/bin/catatonit
+      - --
+      - /stdout-redirect
+      - -redirect
+      - all
+      - -service-id
+      - amos
+      - -logfile
+      - /var/lib/eric-odp-logger/enm-odp.log
+      - -size
+      - "5"
+      - -rotate
+      - "2"
+      - --
+      - /usr/local/bin/sidecar_session_monitoring.sh
+      tty: true
+      stdin: true
+      ports:
+      - containerPort: 8080
+        name: http
+      imagePullPolicy: Always
+      volumeMounts:
+      - name: var-lib-eric-odp
+        mountPath: /var/lib/eric-odp
+      - name: logs
+        mountPath: /var/lib/eric-odp-logger
+      - name: eric-enm-sles-base-scripting-odp-configmap
+        mountPath: /ericsson/eric-odp/enm/scripting
+      workingDir: /var/lib/eric-odp
+      securityContext:
+        runAsUser: {{ "{{" }}index .LdapUserAttr "uidNumber"{{ "}}" }}
+        runAsGroup: 5004
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: RuntimeDefault
+  initContainers:
+  - name: odp-init
+    command: [ "/bin/bash", "-c", "--" ]
+    args: [ "/usr/local/bin/setup_for_main_container.sh" ]
+    env:
+      - name: TZ
+        value: {{ .Values.global.timezone }}
+      - name: INIT_GROUPS
+        value: {{ "{{" }} .LdapGroups {{ "}}" }} # "enm_users:5004;amos_users:5001"
+      - name: MAIN_APPLICATION_USER_NAME
+        value: {{ "{{" }} .UserName {{ "}}" }}
+      - name: MAIN_APPLICATION_USER_UID
+        value: {{ "{{" }}index .LdapUserAttr "uidNumber"{{ "}}" }}
+      - name: MAIN_APPLICATION_USER_PRIMARY_GID
+        value: {{ "{{" }}index .LdapUserAttr "gidNumber"{{ "}}" }}
+      - name: SSO_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: {{ "{{" }} .TokenName {{ "}}" }}
+            key: odptoken
+      - name: SSO_USERNAME
+        value: {{ "{{" }} .UserName {{ "}}" }}
+      - name: USER
+        value: {{ "{{" }} .UserName {{ "}}" }}
+      - name: HOME
+        value: /home/shared/{{ "{{" }} .UserName {{ "}}" }}
+      - name: LOGNAME
+        value: {{ "{{" }} .UserName {{ "}}" }}
+      - name: PWD
+        value: /home/shared/{{ "{{" }} .UserName {{ "}}" }}
+    imagePullPolicy: Always
+    #image: armdocker.rnd.ericsson.se/proj_oss_releases/enm/eric-odp-init:1.0.0-20
+    image: {{ template "eric-enmsg-amos-odp.amos-odp-image" (list .Values "amos-odp-init") }}
+    resources: { }
+    securityContext:
+      runAsUser: {{ "{{" }}index .LdapUserAttr "uidNumber"{{ "}}" }}
+      runAsGroup: 5004
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: [ "ALL" ]
+      seccompProfile:
+        type: RuntimeDefault
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+      - name: var-lib-eric-odp
+        mountPath: /var/lib/eric-odp
+      - name: home
+        mountPath: /home/shared
+  volumes:
+  - name: home
+    persistentVolumeClaim:
+      claimName: eric-enm-rwxpvc-home-shared
+  - name: amos
+    persistentVolumeClaim:
+      claimName: eric-enm-rwxpvc-amos
+  - name: data
+    persistentVolumeClaim:
+      claimName: eric-enm-rwxpvc-data
+  - emptyDir:
+      sizeLimit: 5Mi
+    name: var-lib-eric-odp
+  - emptyDir:
+      sizeLimit: 35Mi
+    name: logs
+  - emptyDir:
+      sizeLimit: 10Mi
+    name: var-opt-ericsson-amos
+  - configMap:
+      defaultMode: 0755
+      name: enm-global-moshellrc
+    name: enm-global-moshellrc
+  - configMap:
+      defaultMode: 420
+      items:
+        - key: filters.conf
+          path: filters.conf
+        - key: fluent-bit.conf
+          path: fluent-bit.conf
+        - key: inputs.conf
+          path: inputs.conf
+        - key: outputs.conf
+          path: outputs.conf
+        - key: parsers.conf
+          path: parsers.conf
+      name: amos-odp-logshipper-cfg
+      optional: false
+    name: fluentbit-config
+  - emptyDir:
+      sizeLimit: 50Mi
+    name: var-tmp
+  - emptyDir:
+      sizeLimit: 50Mi
+    name: tmp
+  - emptyDir:
+      sizeLimit: 5Mi
+    name: run
+  - configMap:
+      defaultMode: 0755
+      name: eric-enm-sles-base-scripting-odp-configmap
+    name: eric-enm-sles-base-scripting-odp-configmap
+  - name: cert-volume
+    projected:
+      sources:
+      - secret:
+          name: "{{ .Values.service.name }}-tls-secret-5"
+          items:
+              - key: tlsStoreData
+                path: odptrust.jks

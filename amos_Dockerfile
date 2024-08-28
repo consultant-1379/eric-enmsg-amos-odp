@@ -1,0 +1,14 @@
+FROM armdocker.rnd.ericsson.se/proj_oss_releases/eric-enm-sles-base-scripting:1.0.41-development
+
+RUN mkdir -p /ericsson/amos/ \
+    /var/tmp/rpms \
+    /ericsson/cert/data/certs/{CA,CRL}
+
+ENV ENM_JBOSS_SDK_CLUSTER_ID="amos" \
+    ENM_JBOSS_BIND_ADDRESS="0.0.0.0"
+
+RUN zypper install -y ERICamosservice2_CXP9039087 ERICamosrestrequestbroker_CXP9031949 ERICterminalwebsocket2_CXP9039065 ERICenmmoshell_CXP9032228 && \
+	zypper download ERICenmsgamos_CXP9031904 && rpm -ivh $(find /var/cache/zypp/packages/ -type f) --nodeps --noscripts  && \
+    zypper clean --all
+
+EXPOSE 22 3528 4447 5342 5343 8009 8080 9920 9921 9990 9999 12987 38467 46001 54200 55631 56164 58156 63167 33077 33078 33079 33080 33081 33082 33083 33084 33085 33086 33087

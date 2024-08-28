@@ -1,0 +1,30 @@
+- name: gp
+  configMap:
+    name: gpamos
+- name: dumps
+  persistentVolumeClaim:
+    claimName: hcdumps
+- name: data
+  persistentVolumeClaim:
+    claimName: data
+- name: mdt
+  persistentVolumeClaim:
+    claimName: mdt
+- name: batch
+  persistentVolumeClaim:
+    claimName: batch
+- name: pmul
+  persistentVolumeClaim:
+    claimName: pmul
+- name: dlms
+  persistentVolumeClaim:
+    claimName: dlms
+- name: pmlinks
+  persistentVolumeClaim:
+    claimName: pmlinks
+- name: configmgt
+  persistentVolumeClaim:
+    claimName: configmgt
+- name: upgind
+  persistentVolumeClaim:
+    claimName: upgind

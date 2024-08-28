@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eric-enm-sles-base-scripting-odp-configmap
+data:
+  session-configuration.conf: |
+    session_timeout=0 # timeout in seconds, 0 means no timeout

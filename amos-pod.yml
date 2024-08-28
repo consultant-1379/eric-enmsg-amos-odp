@@ -1,0 +1,80 @@
+# scripting-pod.yml
+# Create it with:
+#    kubectl apply -f scripting-pod.yml
+# Access console:
+# kubectl exec -it pod/scripting-base bash
+apiVersion: v1
+kind: Pod
+metadata:
+  name: amos-aurora
+spec:
+  containers:
+    - image: armdocker.rnd.ericsson.se/proj_oss_releases/eric-enm-sles-base-scripting:amos-1.0.9
+      name: amos
+      tty: true
+      stdin: true
+      ports:
+        - containerPort: 22
+          name: ssh
+        - containerPort: 4447
+          name: ejb
+        - containerPort: 8080
+          name: jboss
+      imagePullPolicy: Always
+      volumeMounts:
+      - mountPath: "/sys/fs/cgroup"
+        name: cgroups-host-volume
+      - mountPath: "/run"
+        name: run-volume
+      - mountPath: "/tmp"
+        name: tmp-volume
+      - name: gp
+        mountPath: /gp
+      - name: home
+        mountPath: /home/shared
+      - name: dumps
+        mountPath: /ericsson/enm/dumps
+      - name: data
+        mountPath: /ericsson/tor/data
+      - name: mdt
+        mountPath: /etc/opt/ericsson/ERICmodeldeployment
+      - name: amos
+        mountPath: /ericsson/log/amos
+      - name: smrs
+        mountPath: /ericsson/tor/smrs
+  volumes:
+  - name: cgroups-host-volume
+    hostPath:
+      # directory location on host
+      path: /sys/fs/cgroup
+      # this field is optional
+      type: Directory
+  - name: run-volume
+    emptyDir:
+      medium: Memory
+      sizeLimit: 100Mi
+  - name: tmp-volume
+    emptyDir:
+      medium: Memory
+      sizeLimit: 100Mi
+  - name: gp
+    configMap:
+      name: gpcloud
+  - name: dumps
+    persistentVolumeClaim:
+      claimName: hcdumps
+  - name: data
+    persistentVolumeClaim:
+      claimName: data
+  - name: home
+    persistentVolumeClaim:
+      claimName: home-shared
+  - name: mdt
+    persistentVolumeClaim:
+      claimName: mdt
+  - name: amos
+    persistentVolumeClaim:
+      claimName: amos
+  - name: smrs
+    persistentVolumeClaim:
+      claimName: smrs

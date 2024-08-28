@@ -1,0 +1,15 @@
+apiVersion: routing.ericingress.ericsson.com/v1alpha1
+kind: EricIngress
+metadata:
+  name: amos-2
+spec:
+  virtualServiceIP: 10.232.35.212
+  backends:
+    name: amos-2
+    config:
+      - ports:
+         vipPort: 5022
+         svcPort: 22
+        protocol: tcp
+        algo: lc
+        mode: nat

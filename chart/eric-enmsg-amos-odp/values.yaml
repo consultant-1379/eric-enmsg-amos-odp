@@ -1,0 +1,439 @@
+## eric-enmsg-amos image version
+global:
+  pullSecret:
+  registry:
+    url: armdocker.rnd.ericsson.se
+  ingress:
+    enmHost:
+  tags:
+    deploy_eric_net_ingress_l4:
+  vips:
+    svc_FM_vip_ipaddress:
+    svc_CM_vip_ipaddress:
+    svc_PM_vip_ipaddress:
+    amos_vip_address:
+    amos_service_IPv6_IPs:
+    svc_CM_vip_ipv6address:
+    svc_FM_vip_ipv6address:
+    svc_PM_vip_ipv6address:
+  timezone:
+  ip_version: IPv4
+  enmProperties:
+    COM_INF_LDAP_ROOT_SUFFIX:
+    COM_INF_LDAP_ADMIN_ACCESS:
+    COM_INF_LDAP_ADMIN_CN:
+    COM_INF_LDAP_PORT:
+    dps_persistence_provider:
+    LDAP_ADMIN_PASSWORD:
+    LDAP_ADMIN_CN:
+    postgresql01_admin_password:
+    postgres_service: postgres
+  replicas-eric-enmsg-amos-odp-services: 1
+productNumber: "CXC 174 2009"
+# R-State of the product. R State should match helm chart version (3.1.0 -> R2A)
+# To automate it when packaging the helm chart rstate can be generated
+# and below value replaced with correct R-State
+productRevision: RSTATE
+labels: {}
+# Number of replicas(pods) to deploy
+replicas-eric-enmsg-amos-odp-services: 1
+images:
+  eric-enmsg-amos-odp:
+    name: eric-enmsg-amos-odp-services
+    tag: VERSION
+  waitInitContainer:
+    enabled: true
+    name: eric-enm-init-container
+    tag: 1.62.0-44
+    command: "[ '/bin/sh', '-c', 'bash /var/tmp/check_service.sh -s gossiprouter-cache,gossiprouter-eap7,jms01,postgres,sps,nodecli,eric-odp-factory']"
+  eric-enm-httpd:
+    name: eric-enmsg-amos-odp-services-httpd
+    tag: VERSION
+  eric-enm-monitoring:
+    enabled: true
+    name: eric-enm-monitoring-eap7
+    tag: 1.62.0-44
+  eric-enm-amos-cronjobs:
+    enabled: false # disabled till we have stable fsGroup solution
+    name: eric-enm-amos-cronjobs
+    tag: VERSION
+  waitForCertificatesContainer:
+    enabled: true
+    name: enm-wait-for-certificates-container
+    tag: 1.50.0-45
+  # Image for ODP framework solution
+  amos-odp:
+    name: eric-enmsg-amos-odp
+    tag: VERSION
+  amos-odp-init:
+    name: eric-odp-init
+    tag: 1.0.0-21
+  amos-odp-sidecar:
+    name: eric-enm-sles-base-scripting-odp
+    tag: 1.0.0-21
+imageCredentials:
+  repoPath: proj_oss_releases/enm
+  pullPolicy: Always
+  pullSecret:
+  registry:
+    url: armdocker.rnd.ericsson.se
+  logshipper:
+    registry:
+      url:
+      imagePullPolicy:
+    repoPath: "proj-adp-log-released"
+# Below logshipper config is used for LogShipper sidecar for ODP.
+logShipper:
+  logLevel: info
+  runAndExit: true
+  shutdownDelay: 10
+  input:
+    files:
+      - enabled: true
+        paths:
+          - "enm-odp.log*"
+  storage:
+    path: "/var/lib/eric-odp-logger"
+    size: "35Mi"
+  output:
+    logTransformer:
+      host: eric-log-transformer
+eric-enm-common-helmchart-library:
+  enabled: true
+## Allows the specification of additional environment variables
+# - name: MY_ROOT_PASSWORD
+#   valueFrom:
+#     secretKeyRef:
+#       name: my-secret
+#       key: my-root-password
+
+## Configure the service
+service:
+  name: amos-odp-services
+  sgname: amos-odp-services
+  annotations: {}
+  labels:
+  xmlMountPath: "/ericsson/credm/certReqMount"
+  tlsMountPath: "/ericsson/credm/tlsMount"
+  config:
+    tcp:
+      - portRange:
+          vipPortRange:
+            start: 33079
+            end: 33087
+          svcPortRange:
+            start: 33079
+            end: 33087
+        algo: rr
+        mode: nat
+      - ports:
+          vipPort: 33077
+          svcPort: 33077
+        algo: rr
+        mode: nat
+ingress:
+  enabled: true
+ingress_jboss_web_context:
+  name: amos-odp-services-http
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "route"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+persistentVolumeClaim:
+  enabled: false
+ingress_jboss_web_socket:
+  name: amos-odp-services-ws
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.org/websocket-services: amos-odp-services
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "route"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+## Configure resource requests and limits
+resources:
+  requests:
+    enabled: true
+    memory: 2Gi
+    cpu: 1134m
+  limits:
+    enabled: true
+    memory: 4Gi
+    cpu: 3400m
+  httpd:
+    enabled: false
+    requests:
+      memory:
+      cpu:
+    limits:
+      memory:
+      cpu:
+  monitoring:
+    enabled: false
+    requests:
+      memory:
+      cpu:
+    limits:
+      cpu:
+      memory:
+  logshipper:
+    limits:
+      memory: "75Mi"
+      cpu: "50m"
+    requests:
+      memory: "50Mi"
+      cpu: "20m"
+probes:
+  container:
+    startupProbe:
+      enabled: true
+      command: /ericsson/enm_healthcheck/bin/enm_healthcheck.py
+      arguments: --exec_agents
+      initialDelaySeconds: 10
+      timeoutSeconds: 30
+      periodSeconds: 30
+      failureThreshold: 20
+    livenessProbe:
+      enabled: true
+      command: /ericsson/enm_healthcheck/bin/enm_healthcheck.py
+      arguments: --exec_agents
+      initialDelaySeconds: 30
+      timeoutSeconds: 30
+      periodSeconds: 30
+      failureThreshold: 2
+    readinessProbe:
+      enabled: false # false, till ocf scripts for certificates links will be validated
+      command: /ericsson/enm_healthcheck/bin/enm_healthcheck.py
+      arguments: --exec_agents
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 2
+  monitoringcontainer:
+    startupProbe:
+      enabled: true
+      command: /ericsson/enm_healthcheck/bin/enm_healthcheck.py
+      arguments: --exec_agents
+      initialDelaySeconds: 10
+      timeoutSeconds: 30
+      periodSeconds: 30
+      failureThreshold: 20
+    livenessProbe:
+      enabled: true
+      command: /ericsson/enm_healthcheck/bin/enm_healthcheck.py
+      arguments: --exec_agents
+      initialDelaySeconds: 30
+      timeoutSeconds: 30
+      periodSeconds: 30
+      failureThreshold: 2
+  httpdcontainer:
+    startupProbe:
+      enabled: true
+      command: /ericsson/enm_healthcheck/bin/enm_healthcheck.py
+      arguments: --exec_agents
+      initialDelaySeconds: 10
+      timeoutSeconds: 30
+      periodSeconds: 30
+      failureThreshold: 20
+    livenessProbe:
+      enabled: true
+      command: /ericsson/enm_healthcheck/bin/enm_healthcheck.py
+      arguments: --exec_agents
+      initialDelaySeconds: 30
+      timeoutSeconds: 30
+      periodSeconds: 30
+      failureThreshold: 2
+    readinessProbe:
+      enabled: true
+      command: /ericsson/enm_healthcheck/bin/enm_healthcheck.py
+      arguments: --exec_agents
+      initialDelaySeconds: 10
+      periodSeconds: 30
+      timeoutSeconds: 30
+      failureThreshold: 2
+# StartupProbe Health Check configuration.
+startupProbe:
+  enabled: true
+  command: /ericsson/enm_healthcheck/bin/enm_healthcheck.py
+  arguments: --exec_agents
+  initialDelaySeconds: 10
+  timeoutSeconds: 30
+  periodSeconds: 30
+  failureThreshold: 20
+# LivenessProbe Health Check configuration.
+livenessProbe:
+  enabled: true
+  command: /ericsson/enm_healthcheck/bin/enm_healthcheck.py
+  arguments: --exec_agents
+  initialDelaySeconds: 30
+  timeoutSeconds: 30
+  periodSeconds: 30
+  failureThreshold: 2
+readinessProbe:
+  enabled: true
+  command: /ericsson/enm_healthcheck/bin/enm_healthcheck.py
+  arguments: --exec_agents
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+# Termiation grace wait before force terminate pod
+terminationGracePeriod:
+  enabled: false
+  seconds: 90
+# Lifecycle hooks before terminating pod
+lifecycle:
+  handler:
+    enabled: false
+# Extra Annotations to be added to pod
+podAnnotations: {}
+## Tolerations for pod assignment
+tolerations: []
+## Affinity for pod assignment
+affinity: requiredDuringSchedulingIgnoredDuringExecution
+# Constrain which nodes your pod is eligible to be scheduled on
+nodeAffinity: {}
+priorityClassName: ""
+## Node selector
+nodeSelector: {}
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 0
+## Pod Disruption Budget is an indicator of the number of disruptions that can be tolerated at a given time.
+podDisruptionBudget:
+  maxUnavailable: 1
+## CronJob to archive logs in directory  /ericsson/log/amos/moshell_logfiles/
+amos_logs_archive_cronjob:
+  name: amos-logs-archive-cronjob
+  restartPolicy: "OnFailure"
+  tty: true
+  stdin: true
+  volumeMounts:
+    - name: home
+      mountPath: /home/shared
+    - name: amos
+      mountPath: /ericsson/log/amos
+    - name: data
+      mountPath: /ericsson/tor/data
+  volumes:
+    - name: home
+      persistentVolumeClaim:
+        claimName: eric-enm-rwxpvc-home-shared
+    - name: amos
+      persistentVolumeClaim:
+        claimName: eric-enm-rwxpvc-amos
+    - name: data
+      persistentVolumeClaim:
+        claimName: eric-enm-rwxpvc-data
+  command: "[ '/bin/sh', '-c']"
+## CronJob to remove logs in directories:
+## /ericsson/log/amos/moshell_logfiles/*/logs_moshell/
+## /ericsson/log/amos/moshell_logfiles/*/logs_mobatch/
+amos_logs_clean_cronjob:
+  name: amos-logs-clean-cronjob
+  restartPolicy: "OnFailure"
+  tty: true
+  stdin: true
+  volumeMounts:
+    - name: home
+      mountPath: /home/shared
+    - name: amos
+      mountPath: /ericsson/log/amos
+    - name: data
+      mountPath: /ericsson/tor/data
+  volumes:
+    - name: home
+      persistentVolumeClaim:
+        claimName: eric-enm-rwxpvc-home-shared
+    - name: amos
+      persistentVolumeClaim:
+        claimName: eric-enm-rwxpvc-amos
+    - name: data
+      persistentVolumeClaim:
+        claimName: eric-enm-rwxpvc-data
+  command: "[ '/bin/sh', '-c']"
+# labels for cronjobs scheduling
+archiveCron:
+  enabled: false
+  scheduleHour: 23
+  scheduleMinute: 00
+  retentionPeriod: 5
+  executionDays: 5
+houseKeepingCron:
+  enabled: false
+  scheduleHour: 23
+  scheduleMinute: 30
+  heavyCommandRetention: 10
+  generalCommandRetention: 30
+spec:
+  portHTTP: "8084"
+  portHTTPS: "8444"
+credmController:
+  name: eric-enm-credm-controller
+  port: 5001
+jobs:
+  jobAction: certrequest
+  certRequest:
+    imageName: enm-certrequestjob-container
+    pullPolicy: Always
+    tag: 1.50.0-45
+    resources:
+      requests:
+        enabled: true
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        enabled: true
+        cpu: 1000m
+        memory: 512Mi
+securityContext:
+  supplementalGroups:
+    - 0
+    - 206
+  amos:
+    allowPrivilegeEscalation: false
+    privileged: false
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - all
+  monitoring:
+    allowPrivilegeEscalation: false
+    privileged: false
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - all
+  httpd:
+    allowPrivilegeEscalation: false
+    privileged: false
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - all
+  waitInitContainer:
+    allowPrivilegeEscalation: false
+    privileged: false
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 273570
+    capabilities:
+      drop:
+        - all
+  waitForCertificatesContainer:
+    allowPrivilegeEscalation: false
+    privileged: false
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - all

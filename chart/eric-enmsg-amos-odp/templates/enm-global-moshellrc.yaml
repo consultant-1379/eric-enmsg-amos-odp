@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: enm-global-moshellrc
+data:
+  moshellrc: |
+    prompt_highlight=1
+    set_window_title=1
+    alias ter te log read
+    alias tec te log clear
+    alias llc llog -c
+    alias ll llog
+    alias lll llog -l
+    alias err te log read |egrep 'ERROR:|no such command: te'
+    jarxmldir=$HOME/moshell/jarxml
+    export_dir=$HOME/moshell/export
+    export_method=2
+    smart_export=0
+    disk_limit_high=85
+    disk_limit_warn=50

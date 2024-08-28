@@ -1,0 +1,35 @@
+- name: certreq-secret-1
+  secret:
+    secretName: "{{ .Values.service.name }}-certreq-secret-1"
+- name: cert-volume
+  projected:
+    sources:
+    - secret:
+        name: "{{ .Values.service.name }}-tls-secret-1"
+        items:
+        - key: tlsStoreData
+          path: TWSBrokerkey.jks
+    - secret:
+        name: "{{ .Values.service.name }}-tls-secret-2"
+        items:
+        - key: tlsStoreData
+          path: TWSBrokertrust.jks
+    - secret:
+        name: "{{ .Values.service.name }}-tls-secret-3"
+        items:
+        - key: tlsStoreData
+          path: TWSBrokertrustforSSO.jks
+    - secret:
+        name: "{{ .Values.service.name }}-tls-secret-4"
+        items:
+          - key: tlsStoreData
+            path: TWSBrokerKeyforAmosService.jks
+- name: httpd-certreq-secret-1
+  secret:
+    secretName: "{{ .Values.service.name }}-httpd-certreq-secret-1"
+- name: httpd-tls-secret-1
+  secret:
+    secretName: "{{ .Values.service.name }}-httpd-tls-secret-1"
+- name: httpd-tls-secret-2
+  secret:
+    secretName: "{{ .Values.service.name }}-httpd-tls-secret-2"
